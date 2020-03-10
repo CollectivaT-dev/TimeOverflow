@@ -123,7 +123,7 @@ def plot_global_network(G):
             node_color=node_color,
             edgelist=internal,
             edge_color=internal_color)
-    plt.savefig('global.png')
+    plt.savefig('results/global.png')
 
 def plot_local_network(nodeData, H):
     ###------plot of the community : --------------------------
@@ -145,7 +145,7 @@ def plot_local_network(nodeData, H):
     edge_labelsA = nx.get_edge_attributes(H,'n_transf')
     nx.draw_networkx_edge_labels(H,pos,edge_labelsA)  
 
-    plt.savefig("local.png")
+    plt.savefig("results/local.png")
 
 ####################################################
 
@@ -199,7 +199,7 @@ def main(psql_config):
 
 
         H = G.subgraph(selected_nodes)
-        if i == 214:
+        if i == 1:
             plot_local_network(nodeData, H)
 
         #print('n_nodes:', H.number_of_edges())
@@ -210,7 +210,7 @@ def main(psql_config):
 
     # write the result out as a file
     df_out = pd.DataFrame(df_out, columns=('community', 'density', 'n_nodes','most_popular_members'))
-    df_out.to_csv('community_centralities.csv', sep='\t', encoding='utf-8')
+    df_out.to_csv('results/community_centralities.csv', sep='\t', encoding='utf-8')
 
 if __name__=="__main__":
     psql_config = (os.environ.get('TO_DB_SERVER'),
