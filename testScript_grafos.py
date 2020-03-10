@@ -15,6 +15,7 @@
 # now) or construct graphs one by one..
 # - ? make directional graphs?
 # - ? pre-cleaning  of transactions data?
+import os
 import psycopg2
 import pandas as pd
 import matplotlib.dates as mdates
@@ -148,13 +149,13 @@ def plot_local_network(nodeData, H):
 
 ####################################################
 
-def main():
+def main(psql_config):
     ##----Connection to postgres:
-
-    conn = psycopg2.connect(host="localhost",
+    server, to_user, to_password = psql_config
+    conn = psycopg2.connect(host=server,
                             database="timeoverflow",
-                            user="postgres",
-                            password="test")
+                            user=to_user,
+                            password=to_password)
 
 
     with conn:
@@ -212,4 +213,11 @@ def main():
     df_out.to_csv('community_centralities.csv', sep='\t', encoding='utf-8')
 
 if __name__=="__main__":
-    main()
+    psql_config = (os.environ.get('TO_DB_SERVER'),
+                   os.environ.get('TO_DB_USER'),
+                   os.environ.get('TO_DB_PASSWORD'))
+    for element in psql_config:
+        if not element:
+            raise ValueError('TO_DB_SERVER, TO_DB_USER and TO_DB_PASSWORD '\
+                             'has to be set as environment variables.')
+    main(psql_config)
