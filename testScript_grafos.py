@@ -1,3 +1,20 @@
+# 2020 Col·lectivaT
+#
+### TO DO LIST:
+# - in the final df find a way to insert the id of the bank (now there is only
+# id of the community)
+# - add more variables describing the communities in the final df and also info
+# on the bank itself (demografy, etc.)
+# - remove organizations and Managers (?) from most popular members?
+# - think about best way to show most popular members (the first n members, or
+# the first n%?  as a vector in one variable or one per column?)
+# - improve plots (for example, color of nodes according to special_type, find
+# better visualization for big coomunity)
+# - save plots in files with number of the organization
+# - Consider if it's better to construct one single graphs and divide it (like
+# now) or construct graphs one by one..
+# - ? make directional graphs?
+# - ? pre-cleaning  of transactions data?
 import psycopg2
 import pandas as pd
 import matplotlib.dates as mdates
@@ -5,6 +22,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import networkx as nx
 from networkx.algorithms.community import greedy_modularity_communities
+
+### QUERIES: -------------------------------------
 
 MEMBER_ACTIVITY="""
 select tx.*, ty.manager, ty.user_id, ty.entry_date, ty.active from
@@ -168,7 +187,6 @@ def main():
     ###--- Plotting all the communities: -------------------------
     #plot_global_network(G)
 
-
     ## Creating the output dataframe: each line is a community with some variables characterizing it:
     df_out = []
 
@@ -191,18 +209,7 @@ def main():
 
     # write the result out as a file
     df_out = pd.DataFrame(df_out, columns=('community', 'density', 'n_nodes','most_popular_members'))
-    df_out.to_csv('test.csv', sep='\t', encoding='utf-8')
-
-### TO DO LIST:
-# - in the final df find a way to insert the id of the bank (now there is only id of the community)
-# - add more variables describing the communities in the final df and also info on the bank itself (demografy, etc.)
-# - remove organizations and Managers (?) from most popular members?
-# - think about best way to show most popular members (the first n members, or the first n%?  as a vector in one variable or one per column?)
-# - improve plots (for example, color of nodes according to special_type, find better visualization for big coomunity)
-# - save plots in files with number of the organization
-# - Consider if it's better to construct one single graphs and divide it (like now) or construct graphs one by one..
-# - ? make directional graphs?
-# - ? pre-cleaning  of transactions data?
+    df_out.to_csv('community_centralities.csv', sep='\t', encoding='utf-8')
 
 if __name__=="__main__":
     main()
