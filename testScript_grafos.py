@@ -199,7 +199,7 @@ def main(psql_config):
 
 
         H = G.subgraph(selected_nodes)
-        if i == 1:
+        if i == 54:
             plot_local_network(nodeData, H)
 
         #print('n_nodes:', H.number_of_edges())
