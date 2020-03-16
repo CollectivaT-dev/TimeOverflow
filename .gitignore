@@ -3,3 +3,4 @@ venv/
 *.png
 *.pyc
 *.csv
+*.csv#
