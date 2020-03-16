@@ -8,14 +8,17 @@ RUN apt-get update && \
 # Set the working directory to /app
 WORKDIR /app
 
-# Copy the current directory contents into the container at /app
-ADD . /app
-RUN mkdir -p /app/results
-VOLUME ./results /app/results
+# Copy requirements ahead of time for build time optimization
+COPY requirements.txt /app
 
 # Install any needed packages specified in requirements.txt
 RUN pip install -r requirements.txt && \
     rm -r /root/.cache
+
+# Copy the current directory contents into the container at /app
+ADD . /app
+RUN mkdir -p /app/results
+VOLUME ./results /app/results
 
 # Run app.py when the container launches
 CMD ["python", "testScript_grafos.py"]
