@@ -1,18 +1,12 @@
 # 2020 Col·lectivaT
 #
 ### TO DO LIST:
-# - in the final df find a way to insert the id of the bank (now there is only
-# id of the community)
-# - add more variables describing the communities in the final df and also info
-# on the bank itself (demografy, etc.)
 # - remove organizations and Managers (?) from most popular members?
 # - think about best way to show most popular members (the first n members, or
 # the first n%?  as a vector in one variable or one per column?)
 # - improve plots (for example, color of nodes according to special_type, find
 # better visualization for big coomunity)
 # - save plots in files with number of the organization
-# - Consider if it's better to construct one single graphs and divide it (like
-# now) or construct graphs one by one..
 # - ? make directional graphs?
 # - ? pre-cleaning  of transactions data?
 import os
@@ -26,29 +20,22 @@ from networkx.algorithms.community import greedy_modularity_communities
 
 ### QUERIES: -------------------------------------
 
+
 MEMBER_ACTIVITY="""
-select tx.*, ty.manager, ty.user_id, ty.entry_date, ty.active from
-(select
-    ta.*, tb.organization_id as organization_emis, tb.accountable_type as type_emis, tb.balance as balance_emis, tb.accountable_id
-from
-    (select t0.account_id_emis, t0.account_id_dest, count(*) as n_transf, sum(t0.amount) as amount from
+    select 
+        t0.account_id_emis, t0.account_id_dest, count(*) as n_transf, sum(t0.amount) as amount 
+    from
         (select
-            t1.id as id_mov1,  t2.id as id_mov2,
-            t1.transfer_id,
-            t1.account_id as account_id_emis, t2.account_id as account_id_dest,
-            t1.amount, t1.created_at, t1.updated_at
-        from
-            (select * from movements where amount <0 )t1
-        inner join
-            (select * from movements where amount >0) t2
-        on t1.transfer_id=t2.transfer_id) t0
-        group by account_id_emis, account_id_dest) ta
-    left outer join
-        (select * from accounts) tb
-    on ta.account_id_emis=tb.id) tx
-left outer join
-    (select * from members ) ty
-on tx.accountable_id=ty.id;"""
+                t1.id as id_mov1,  t2.id as id_mov2,
+                t1.transfer_id,
+                t1.account_id as account_id_emis, t2.account_id as account_id_dest,
+                t1.amount, t1.created_at, t1.updated_at
+         from
+                (select * from movements where amount <0 )t1
+         inner join
+                (select * from movements where amount >0) t2
+         on t1.transfer_id=t2.transfer_id) t0
+    group by account_id_emis, account_id_dest;"""
 
 MEMBER_NODE="""
     select
@@ -66,6 +53,52 @@ MEMBER_NODE="""
     left outer join
        (select * from members ) ty
     on tx.accountable_id=ty.id;"""
+
+
+ORGANIZATION_PROFILE="""
+    select
+         t1.id, t1.name as bank_name, 
+         t2.n_members, t2.PC_known_age, t2.max_age, t2.min_age, t2.mean_age,
+         t2.n_females, t2.n_males, t2.n_prefNOansw, t2.n_gender_null, 
+         t2.PC_females, t2.PC_males, t2.PC_prefNOansw, t2.PC_gender_null, 
+         t2.max_seniority, t2.min_seniority, t2.mean_seniority
+    from
+         organizations t1
+    left outer join
+         (select
+            organization_id, count(*) as n_records,
+            count(distinct id) as n_users, count(distinct member_id) as n_members,
+            round(cast(sum(case when age is not null then 1 else 0 end) as numeric)/count(*)*100,1) as PC_known_age,
+            max(age) as max_age,
+            min(age) as min_age,
+            round(avg(age)) as mean_age,
+            sum(case when gender ='female' then 1 else 0 end) as n_females,
+            sum(case when gender='male' then 1 else 0 end) as n_males,
+            sum(case when gender='prefer_not_to_answer' then 1 else 0 end) as n_prefNOansw,
+            sum(case when (gender='' or gender is null) then 1 else 0 end) as n_gender_null,
+            round(cast(sum(case when gender ='female' then 1 else 0 end) as numeric )/count(*)*100,1) as PC_females,
+	    round(cast(sum(case when gender='male' then 1 else 0 end) as numeric )/count(*)*100,1) as PC_males,
+	    round(cast(sum(case when gender='prefer_not_to_answer' then 1 else 0 end) as numeric )/count(*)*100,1) as PC_prefNOansw,
+	    round(cast(sum(case when (gender='' or gender is null) then 1 else 0 end) as numeric )/count(*)*100,1) as PC_gender_null,
+            max(seniority) as max_seniority,
+            min(seniority) as min_seniority,  
+            round(avg(seniority)) as mean_seniority
+         from      
+            (select
+                ta.id, 
+                ta.date_of_birth, case when extract (year from date_of_birth)>1900 then extract ( year from age(ta.date_of_birth)) else null end as age,
+                ta.gender, ta.active, ta.created_at, ta.sign_in_count, ta.current_sign_in_at, ta.last_sign_in_at,
+                tb.id as member_id, tb.organization_id, tb.manager, tb.entry_date,
+                case when extract (year from tb.entry_date)>1900 then extract ( year from age(tb.entry_date)) else null end as seniority,
+                tb.member_uid, tb.active as active_member
+             from
+                users ta
+             left outer join
+                members tb
+             on ta.id=tb.user_id) tt
+         group by organization_id) t2
+    on t1.id=t2.organization_id;"""
+
 
 
 ### FUNCTIONS: -------------------------------------
@@ -160,57 +193,71 @@ def main(psql_config):
 
     with conn:
         sql1=MEMBER_ACTIVITY
-        df = pd.read_sql_query(sql1, conn)  ## Df with all the edges (already grouped by)
+        df = pd.read_sql_query(sql1, conn)  ## df with all the edges (already grouped by)
 
         sql2=MEMBER_NODE
-        nodeData = pd.read_sql_query(sql2, conn)  ## Df with attributes of nodes
+        nodeData = pd.read_sql_query(sql2, conn)  ## df with attributes of nodes
 
+        sql3=ORGANIZATION_PROFILE
+        df_banks= pd.read_sql_query(sql3, conn)  ## df with list of all banks and some variables characterizing them
+        
     ## Creating a new attribute of nodes:
     nodeData.manager=nodeData.manager.astype(bool)
     nodeData['special_type'] = nodeData['accountable_type']
     nodeData.loc[nodeData['manager'], 'special_type'] = 'Manager'
 
 
-    ## Creating the global graph:
-    G = nx.from_pandas_edgelist(df, 'account_id_emis', 'account_id_dest', ['amount', 'n_transf'])
+    ## Adding to the edges df the id of the bank 
+    dff= pd.merge(df, nodeData[['account_id', 'organization_id']], left_on='account_id_emis', right_on='account_id')
+    dff= pd.merge(dff, nodeData[['account_id', 'organization_id']], left_on='account_id_dest', right_on='account_id')
 
-    ## Identifying subcommunities (i.e. the banks, in our case different
-    ## subcommunities have no connection among them)
-    communities=sorted(greedy_modularity_communities(G), key=len, reverse=True)
+    dff['bank_id']=dff['organization_id_x']
+    dff.loc[dff['organization_id_x'].isna() & dff['organization_id_y'].notna(), 'bank_id'] = dff.organization_id_y
 
-    ## Count the communities
-    print(f"Timeoverflow has {len(communities)} communities.")
+    df=dff.drop(columns=['account_id_x', 'account_id_y', 'organization_id_x', 'organization_id_y'])
 
-    # Set node and edge communities
-    set_node_community(G, communities)
-    set_edge_community(G)
+    df=df[df['bank_id'].notna()]
+    #print('After cleaning, the bank ids are: ', df.bank_id.unique())
 
-    ###--- Plotting all the communities: -------------------------
-    #plot_global_network(G)
+    ## Count the communities with at least one transfer in the whole history of TO:
+    print(f"Timeoverflow has {len(df.bank_id.unique())} communities.")
+    
+    ## Creating the networks dataframe: each line is a bank with some variables characterizing its network:
+    df_redes=[]
 
-    ## Creating the output dataframe: each line is a community with some variables characterizing it:
-    df_out = []
+    for i in df.bank_id.unique():
+            
+            dd=df[df['bank_id']==i] #df with edges between members of that specific bank
+            n_transf=sum(dd.n_transf)
+            
+            print("Analizing organization %d   --------------------------------" % (i))
+           
+            
+            G1 = nx.from_pandas_edgelist(dd, 'account_id_emis', 'account_id_dest', ['amount', 'n_transf', 'bank_id'])
+     
+            nx.set_node_attributes(G1, nodeData.set_index('account_id').to_dict('index'))
+            
 
-    for i in range(1,len(communities)+1):
-        print("We're on community %d" % (i))
+            print("Its network has %d edges and %d nodes" % (G1.number_of_edges(),G1.number_of_nodes()) )
+            print('and a density of: ', nx.density(G1))
 
-        selected_nodes = [x for x,y in G.nodes(data=True) if y['community']==i]
-        selected_edges = [(u,v) for u,v,e in G.edges(data=True) if e['community'] ==i]
+            most_active_members = sorted(nx.degree_centrality(G1), key = lambda x: (-nx.degree_centrality(G1)[x], x))
 
+            if i == 214:
+                   plot_local_network(nodeData, G1)
+            
+            df_redes.append((i, nx.density(G1),n_transf, G1.number_of_edges(), G1.number_of_nodes(), most_active_members ))
+            
+            
 
-        H = G.subgraph(selected_nodes)
-        if i == 54:
-            plot_local_network(nodeData, H)
+    ## Set column names of the network df
+    df_redes = pd.DataFrame(df_redes, columns=('bank_id', 'density','n_transf', 'n_edges', 'n_nodes','most_popular_members'))
 
-        #print('n_nodes:', H.number_of_edges())
-        print('density: ', nx.density(H))
+    ## Join the network df with the list of banks and their general characteristics and write the result out as a file
+    df_banks=df_banks.merge(df_redes, left_on='id', right_on='bank_id', how='left')
+    df_banks.to_csv('results/organizations_profiles.csv', sep='\t', encoding='utf-8')
 
-        most_popular_members = sorted(nx.degree_centrality(H), key = lambda x: (-nx.degree_centrality(H)[x], x))
-        df_out.append((i, nx.density(H), H.number_of_nodes(), most_popular_members[:10] ))
-
-    # write the result out as a file
-    df_out = pd.DataFrame(df_out, columns=('community', 'density', 'n_nodes','most_popular_members'))
-    df_out.to_csv('results/community_centralities.csv', sep='\t', encoding='utf-8')
+    
 
 if __name__=="__main__":
     psql_config = (os.environ.get('TO_DB_SERVER'),
