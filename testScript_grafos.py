@@ -1,9 +1,6 @@
 # 2020 Col·lectivaT
 #
 ### TO DO LIST:
-# - remove organizations and Managers (?) from most popular members?
-# - think about best way to show most popular members (the first n members, or
-# the first n%?  as a vector in one variable or one per column?)
 # - improve plots (for example, color of nodes according to special_type, find
 # better visualization for big coomunity)
 # - save plots in files with number of the organization
@@ -17,9 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import networkx as nx
 from networkx.algorithms.community import greedy_modularity_communities
+from datetime import date
 
 ### QUERIES: -------------------------------------
-
 
 MEMBER_ACTIVITY="""
     select 
@@ -58,10 +55,10 @@ MEMBER_NODE="""
 ORGANIZATION_PROFILE="""
     select
          t1.id, t1.name as bank_name, 
-         t2.n_members, t2.PC_known_age, t2.max_age, t2.min_age, t2.mean_age,
+         t2.n_members, t2.PC_known_age, t2.max_age, t2.min_age, t2.avg_age,
          t2.n_females, t2.n_males, t2.n_prefNOansw, t2.n_gender_null, 
          t2.PC_females, t2.PC_males, t2.PC_prefNOansw, t2.PC_gender_null, 
-         t2.max_seniority, t2.min_seniority, t2.mean_seniority
+         t2.max_seniority, t2.min_seniority, t2.avg_seniority
     from
          organizations t1
     left outer join
@@ -71,7 +68,7 @@ ORGANIZATION_PROFILE="""
             round(cast(sum(case when age is not null then 1 else 0 end) as numeric)/count(*)*100,1) as PC_known_age,
             max(age) as max_age,
             min(age) as min_age,
-            round(avg(age)) as mean_age,
+            round(avg(age)) as avg_age,
             sum(case when gender ='female' then 1 else 0 end) as n_females,
             sum(case when gender='male' then 1 else 0 end) as n_males,
             sum(case when gender='prefer_not_to_answer' then 1 else 0 end) as n_prefNOansw,
@@ -82,7 +79,7 @@ ORGANIZATION_PROFILE="""
 	    round(cast(sum(case when (gender='' or gender is null) then 1 else 0 end) as numeric )/count(*)*100,1) as PC_gender_null,
             max(seniority) as max_seniority,
             min(seniority) as min_seniority,  
-            round(avg(seniority)) as mean_seniority
+            round(avg(seniority)) as avg_seniority
          from      
             (select
                 ta.id, 
@@ -201,11 +198,11 @@ def main(psql_config):
         sql3=ORGANIZATION_PROFILE
         df_banks= pd.read_sql_query(sql3, conn)  ## df with list of all banks and some variables characterizing them
         
+
     ## Creating a new attribute of nodes:
     nodeData.manager=nodeData.manager.astype(bool)
     nodeData['special_type'] = nodeData['accountable_type']
     nodeData.loc[nodeData['manager'], 'special_type'] = 'Manager'
-
 
     ## Adding to the edges df the id of the bank 
     dff= pd.merge(df, nodeData[['account_id', 'organization_id']], left_on='account_id_emis', right_on='account_id')
@@ -225,6 +222,10 @@ def main(psql_config):
     ## Creating the networks dataframe: each line is a bank with some variables characterizing its network:
     df_redes=[]
 
+    column_names = ['organization_id', 'account_id', 'special_type','centrality']
+    df_cc = pd.DataFrame(columns = column_names)
+
+
     for i in df.bank_id.unique():
             
             dd=df[df['bank_id']==i] #df with edges between members of that specific bank
@@ -241,24 +242,49 @@ def main(psql_config):
             print("Its network has %d edges and %d nodes" % (G1.number_of_edges(),G1.number_of_nodes()) )
             print('and a density of: ', nx.density(G1))
 
-            most_active_members = sorted(nx.degree_centrality(G1), key = lambda x: (-nx.degree_centrality(G1)[x], x))
+           
 
+            ## Create ranking of members according to their centrality inside the bank:
+            #most_active_members = sorted(nx.degree_centrality(G1), key = lambda x: (-nx.degree_centrality(G1)[x], x)) ##list of ids in descending order of centrality
+            dfi=[]
+            dfi = pd.DataFrame(nx.degree_centrality(G1).items(), columns=['node_id', 'centrality'])                       
+            dfi = pd.merge(dfi, nodeData[['account_id', 'special_type', 'organization_id']], left_on='node_id', right_on='account_id')
+
+            dfi.drop(columns=['node_id'])
+            dfi = dfi[['organization_id', 'account_id', 'special_type','centrality']]
+            dfi = dfi.sort_values(by=['centrality'],ascending=False)   
+            dfi = dfi[dfi.organization_id.notna()]
+            
+            df_cc = pd.concat([df_cc, dfi])
+            
             if i == 214:
                    plot_local_network(nodeData, G1)
             
-            df_redes.append((i, nx.density(G1),n_transf, G1.number_of_edges(), G1.number_of_nodes(), most_active_members ))
+            ## Count members with degree centrality >20%
+            count_c20 = sum(map(lambda x : x>0.2, list(nx.degree_centrality(G1).values())))
+
+
+            ## Array with the centrality values of all the nodes
+            cc=np.array(list(nx.degree_centrality(G1).values()))
             
+            df_redes.append((i, nx.density(G1), n_transf, G1.number_of_edges(), G1.number_of_nodes(), 
+                           cc.mean(), cc.min(), cc.max(), count_c20, count_c20/len(cc)*100))
+        
             
 
     ## Set column names of the network df
-    df_redes = pd.DataFrame(df_redes, columns=('bank_id', 'density','n_transf', 'n_edges', 'n_nodes','most_popular_members'))
+    df_redes = pd.DataFrame(df_redes, columns=('bank_id', 'density','n_transf', 'n_edges', 'n_nodes','avg_centrality', 'min_centrality', 'max_centrality', 'n_popular_members', 'PC_popular_members'))
 
+    df_cc.organization_id=df_cc.organization_id.astype(int)    
+    df_cc.to_csv('results/members_centralities.csv', sep='\t', encoding='utf-8')
+       
     ## Join the network df with the list of banks and their general characteristics and write the result out as a file
     df_banks=df_banks.merge(df_redes, left_on='id', right_on='bank_id', how='left')
+    df_banks['date']=date.today()
     df_banks.to_csv('results/organizations_profiles.csv', sep='\t', encoding='utf-8')
+   
 
     
-
 if __name__=="__main__":
     psql_config = (os.environ.get('TO_DB_SERVER'),
                    os.environ.get('TO_DB_USER'),
