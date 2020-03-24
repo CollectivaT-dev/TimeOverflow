@@ -204,6 +204,9 @@ def main(psql_config):
     nodeData['special_type'] = nodeData['accountable_type']
     nodeData.loc[nodeData['manager'], 'special_type'] = 'Manager'
 
+    ## Saving df with nodes and their attributes
+    nodeData.to_csv('results/nodes.csv', sep='\t', encoding='utf-8')
+
     ## Adding to the edges df the id of the bank 
     dff= pd.merge(df, nodeData[['account_id', 'organization_id']], left_on='account_id_emis', right_on='account_id')
     dff= pd.merge(dff, nodeData[['account_id', 'organization_id']], left_on='account_id_dest', right_on='account_id')
@@ -216,6 +219,9 @@ def main(psql_config):
     df=df[df['bank_id'].notna()]
     #print('After cleaning, the bank ids are: ', df.bank_id.unique())
 
+    ## Saving df with edges and their attributes
+    df.to_csv('results/edges.csv', sep='\t', encoding='utf-8')
+    
     ## Count the communities with at least one transfer in the whole history of TO:
     print(f"Timeoverflow has {len(df.bank_id.unique())} communities.")
     
