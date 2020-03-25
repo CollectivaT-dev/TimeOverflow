@@ -181,9 +181,9 @@ def plot_local_network(nodeData, H):
 
 def main(psql_config):
     ##----Connection to postgres:
-    server, to_user, to_password = psql_config
+    server, to_user, to_password, to_database = psql_config
     conn = psycopg2.connect(host=server,
-                            database="timeoverflow",
+                            database=to_database,
                             user=to_user,
                             password=to_password)
 
@@ -294,9 +294,10 @@ def main(psql_config):
 if __name__=="__main__":
     psql_config = (os.environ.get('TO_DB_SERVER'),
                    os.environ.get('TO_DB_USER'),
-                   os.environ.get('TO_DB_PASSWORD'))
+                   os.environ.get('TO_DB_PASSWORD'),
+                   os.environ.get('TO_DB_NAME'))
     for element in psql_config:
         if not element:
-            raise ValueError('TO_DB_SERVER, TO_DB_USER and TO_DB_PASSWORD '\
+            raise ValueError('TO_DB_SERVER, TO_DB_USER, TO_DB_PASSWORD and TO_DB_NAME '\
                              'has to be set as environment variables.')
     main(psql_config)
