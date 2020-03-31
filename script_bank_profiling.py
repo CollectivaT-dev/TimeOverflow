@@ -46,7 +46,7 @@ if (datetime.datetime.strptime(date_end, '%Y-%m-%d')<=datetime.datetime.strptime
 
 
 ###For now:
-#date_begin='2013-01-01' 
+#date_start='2013-01-01' 
 #date_end = '2020-01-10'   ##In future it should be: date_end = date.today()
 
 date_active_member=datetime.datetime.strptime(date_end, '%Y-%m-%d').date()-pd.DateOffset(months=3) #According to definition of adbdt
@@ -280,9 +280,10 @@ def main(psql_config):
     nodeData['special_type'] = nodeData['accountable_type']
     nodeData.loc[nodeData['manager'], 'special_type'] = 'Manager'
 
-    ## Saving df with nodes and their attributes
-    nodeData.to_csv('results/nodes.csv', sep='\t', encoding='utf-8')
 
+    ## Saving df with nodes and their attributes
+    df_nodes=pd.merge(nodeData, df_banks[['bank_id', 'bank_name']], how='inner', left_on='organization_id', right_on='bank_id')
+    df_nodes.to_csv('results/nodes.csv', sep='\t', encoding='utf-8')
 
     ##--- TRANSFER ATTRIBUTES ----------------------------------------------------------
     ## Adding attributes to transfers df:
