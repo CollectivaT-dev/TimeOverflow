@@ -1,11 +1,16 @@
 # 2020 Col·lectivaT
 #
 ### TO DO LIST:
+# - add indicator of average time of users before first interchange
+# - add indicator od average time of bank from entrance in TO and first interchange
+# - add indicator measuring mean lifetime of users
+# - add betweenness??
 # - improve plots (for example, color of nodes according to special_type, find
 # better visualization for big coomunity)
 # - save plots in files with number of the organization
 # - ? make directional graphs?
 # - ? pre-cleaning  of transactions data?
+import sys
 import os
 import psycopg2
 import pandas as pd
@@ -16,33 +21,44 @@ import networkx as nx
 from networkx.algorithms.community import greedy_modularity_communities
 import datetime
 
-### Arguments -----------------------------------
 
-#if len(sys.argv) <= 2:
-#        print ("Please pass date_begin and date_end as arguments")
-#        quit()
-#else
-#    date_begin=sys.argv[1]
-#    date_end=sys.argv[2]
+### COMMAND LINE ARGUMENTS -----------------------------------
 
-date_begin='2010-01-01' 
+print('Number of arguments: ', len(sys.argv), ' arguments.')
+print('Argument List: ', str(sys.argv))
 
-##For now:
-end = '2020-01-10'   
-date_end = datetime.datetime.strptime(end, '%Y-%m-%d').date()
-##But in future we'll use:
-#date_end = date.today()
-
-date_active_member=date_end-pd.DateOffset(months=3) #according to definition of adbdt
-
-print('begin date: ', date_begin)
-print('end date: ', date_end)
-print('Date for defining active members:', date_active_member)
+if len(sys.argv) <= 1:
+        print ("**Please pass as arguments: date of calculation (yyyy-mm-dd) and starting date (if different from beginning)")
+        quit()
+elif len(sys.argv) ==2:
+     date_end=sys.argv[1]
+     date_start='2013-01-01'
+elif len(sys.argv) ==3:
+     date_end=sys.argv[1]
+     date_start=sys.argv[2]        
+else:
+     print ("**Warning: unneccesary arguments have been given (only date of calculation and date_start needed)")
 
 
+if (datetime.datetime.strptime(date_end, '%Y-%m-%d')<=datetime.datetime.strptime(date_start, '%Y-%m-%d')):
+     print("**Error: date of calculation anterior to first date in dataset")
+     quit()
 
 
-### QUERIES: -------------------------------------
+###For now:
+#date_begin='2013-01-01' 
+#date_end = '2020-01-10'   ##In future it should be: date_end = date.today()
+
+date_active_member=datetime.datetime.strptime(date_end, '%Y-%m-%d').date()-pd.DateOffset(months=3) #According to definition of adbdt
+
+print('Start date: ', date_start)
+print('End date: ', date_end)
+print('Date used to define active members:', date_active_member)
+
+
+
+
+### SQL QUERIES: --------------------------------------------------
 
 
 INTERCHANGE_ACTIVITY=("""
@@ -71,7 +87,7 @@ select tz.*, tw.category_id from
     on tx.transfer_id=ty.id) tz
 left outer join
     (select * from posts) tw
-on tz.post_id=tw.id;""" % (date_begin , date_end, date_begin , date_end))
+on tz.post_id=tw.id;""" % (date_start , date_end, date_start , date_end))
 
 
 MEMBER_NODE="""
@@ -112,7 +128,7 @@ POST_COUNTS=("""
     FROM 
         posts 
     WHERE created_at between to_date('%s','yyyy-mm-dd') AND to_date('%s','yyyy-mm-dd')
-    GROUP BY organization_id;""" % (date_begin, date_end))
+    GROUP BY organization_id;""" % (date_start, date_end))
 
 
 ORGANIZATION_PROFILE="""
@@ -161,7 +177,7 @@ ORGANIZATION_PROFILE="""
 
 
 
-### FUNCTIONS: -------------------------------------
+### FUNCTIONS: ------------------------------------------------------------------
 
 def set_node_community(G, communities):
         '''Add community to node attributes'''
@@ -214,7 +230,9 @@ def plot_local_network(nodeData, H):
 
     plt.savefig("results/local.png")
 
-####################################################
+#######################################################################
+
+
 
 def main(psql_config):
     ##----Connection to postgres:
@@ -314,7 +332,7 @@ def main(psql_config):
     dcat_tot=pd.merge(dcat_tot, d2, how='left',left_on='bank_id', right_on='bank_id')
    
 
-  
+
     ###--- NETWORK ANALYSIS -------------------------------------------------------
 
     df_edges = df_transf.groupby(['account_id_emis', 'account_id_dest']).agg({'amount': ['count', 'sum'], 'bank_id': ['max']})
@@ -388,8 +406,7 @@ def main(psql_config):
 
     df_cc.organization_id=df_cc.organization_id.astype(int)    
     df_cc.to_csv('results/members_centralities.csv', sep='\t', encoding='utf-8')
-
-
+ 
 
     
 
@@ -420,16 +437,15 @@ def main(psql_config):
     df_out['frac_posts']=df_out.n_posts/df_out.n_transf_tot
     df_out['npost_perMember']=round(df_out.n_posts/df_out.n_members,1)
 
-    
     ## Add df with the network characterization 
     df_out=df_out.merge(df_redes, left_on='bank_id', right_on='bank_id', how='left')
-    df_out['timestamp']=datetime.datetime.utcnow()  ##date.today()
-
+    
     ##--- Write the result as a file
+    df_out['timestamp']=datetime.datetime.utcnow()  ##date.today()
     df_out.to_csv('results/organizations_profiles.csv', sep='\t', encoding='utf-8')
    
 
-    
+
 if __name__=="__main__":
     psql_config = (os.environ.get('TO_DB_SERVER'),
                    os.environ.get('TO_DB_USER'),
@@ -440,3 +456,6 @@ if __name__=="__main__":
             raise ValueError('TO_DB_SERVER, TO_DB_USER, TO_DB_PASSWORD and TO_DB_NAME '\
                              'has to be set as environment variables.')
     main(psql_config)
+
+
+
