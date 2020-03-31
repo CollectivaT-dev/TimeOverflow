@@ -1,8 +1,6 @@
 # 2020 Col·lectivaT
 #
 ### TO DO LIST:
-# - add indicator of average time of users before first interchange
-# - add indicator od average time of bank from entrance in TO and first interchange
 # - add indicator measuring mean lifetime of users
 # - add betweenness??
 # - improve plots (for example, color of nodes according to special_type, find
@@ -176,6 +174,24 @@ ORGANIZATION_PROFILE="""
     on t1.id=t2.organization_id;"""
 
 
+DELAY_FIRST_TRANSF=""" 
+    select tt.organization_id as bank_id, round(cast(avg(tt.delay_first_transf) as numeric),1) as avg_delay from 
+    (select 
+        mov.account_id, 
+        mem.id as member_id,  
+        mem.entry_date, 
+        acc.organization_id, 
+        org.entry_date as bank_entry_date,
+        mov.first_transf_date, 
+        extract (days from (mov.first_transf_date-mem.entry_date)) as  delay_first_transf
+    from (select account_id, min(created_at) as first_transf_date from movements group by account_id) mov
+    inner join (select * from accounts where accountable_type='Member') acc on mov.account_id=acc.id
+    inner join (select id, created_at::timestamp::date as entry_date from organizations) org on acc.organization_id=org.id
+    inner join (select * from members where entry_date>=(select min(created_at) from movements)) mem on acc.accountable_id=mem.id
+    ) tt where tt.entry_date > tt.bank_entry_date
+    group by tt.organization_id;
+"""
+
 
 ### FUNCTIONS: ------------------------------------------------------------------
 
@@ -260,6 +276,8 @@ def main(psql_config):
         sql5=POST_COUNTS
         df_posts= pd.read_sql_query(sql5, conn)  ## Df with number of posts, n. inquiries and n. offers per bank
 
+        sql6=DELAY_FIRST_TRANSF
+        df_delay= pd.read_sql_query(sql6, conn)  ## Df with mean delay (in days) in making the first transfer
         
     ##--- POSTS METRICS  ----------------------------------------------------------
     ## Adding new variables to df with number of posts per bank:   
@@ -418,6 +436,10 @@ def main(psql_config):
 
     df_out['n_active_members'].fillna(0, inplace = True)
 
+    ## Add varibale of mean delay of first interchange 
+    df_out=pd.merge(df_out, df_delay, how='left', left_on='bank_id', right_on='bank_id')
+
+
     ## Add df with characterization of interchanges (according to their category_id)
     df_out=pd.merge(df_out, dcat_tot, how='left', left_on='bank_id', right_on='bank_id')
 
@@ -429,6 +451,8 @@ def main(psql_config):
     df_out['amount_perMember']=round(df_out.amount_tot/df_out.n_members,1)
     df_out['PC_active']=round(df_out.n_active_members/df_out.n_members*100,2)
 
+
+    
     ## Add df with posts metrics
     df_out=pd.merge(df_out, df_posts, how='left', left_on='bank_id', right_on='bank_id')
 
