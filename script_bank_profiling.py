@@ -175,7 +175,7 @@ ORGANIZATION_PROFILE="""
 
 
 DELAY_FIRST_TRANSF=""" 
-    select tt.organization_id as bank_id, round(cast(avg(tt.delay_first_transf) as numeric),1) as avg_delay from 
+    select tt.organization_id as bank_id, round(cast(avg(tt.delay_first_transf) as numeric),1) as avg_delay, count(*) as weight from 
     (select 
         mov.account_id, 
         mem.id as member_id,  
@@ -437,7 +437,7 @@ def main(psql_config):
     df_out['n_active_members'].fillna(0, inplace = True)
 
     ## Add varibale of mean delay of first interchange 
-    df_out=pd.merge(df_out, df_delay, how='left', left_on='bank_id', right_on='bank_id')
+    df_out=pd.merge(df_out, df_delay[['bank_id','avg_delay']], how='left', left_on='bank_id', right_on='bank_id')
 
 
     ## Add df with characterization of interchanges (according to their category_id)
@@ -468,8 +468,49 @@ def main(psql_config):
     ##--- Write the result as a file
     df_out['timestamp']=datetime.datetime.utcnow()  ##date.today()
     df_out.to_csv('results/organizations_profiles.csv', sep='\t', encoding='utf-8')
-   
 
+
+
+    ###---Dividing all the indicators constructed in different groups: -----------------
+    #df_out.columns
+
+    col_ids=['bank_id', 'bank_name','timestamp']  
+
+    ## member community characteristics:
+    ind_members=['n_members','max_seniority', 'min_seniority', 'avg_seniority']
+
+    ## activity in the bank:
+    ind_activity=['n_transf_tot', 'amount_tot',
+                  'ntransf_perMember', 'amount_perMember', 
+                  'n_active_members','PC_active', 
+                  'avg_delay',
+                  'n_posts', 'frac_posts', 'npost_perMember',
+                  'n_offers', 'n_inquiry', 'n_group_post', 
+                  'ratio_inquiry_offer','frac_group_posts']
+
+    ## demography:
+    ind_demog=['pc_known_age', 'max_age','min_age', 'avg_age', 
+               'n_females', 'n_males', 'n_prefnoansw','n_gender_null', 
+               'pc_females', 'pc_males', 'pc_prefnoansw','pc_gender_null']
+
+    ## type of interchanges:
+    ind_types=['PC_transf_nocat', 'PC_transf_cat1', 'PC_transf_cat2', 'PC_transf_cat3', 'PC_transf_cat4',
+               'PC_transf_cat5', 'PC_transf_cat6', 'PC_transf_cat7', 'PC_transf_cat8','PC_transf_cat9', 
+               'PC_amount_nocat', 'PC_amount_cat1', 'PC_amount_cat2', 'PC_amount_cat3', 'PC_amount_cat4', 
+               'PC_amount_cat5', 'PC_amount_cat6', 'PC_amount_cat7', 'PC_amount_cat8', 'PC_amount_cat9']
+
+    ## network characteristics:
+    ind_network=['density','n_transf', 'n_edges', 'n_nodes', 
+                 'avg_centrality', 'min_centrality', 'max_centrality', 
+                 'n_popular_members', 'PC_popular_members']
+
+
+    ## Now let's look for example at the indicators of bank activity: 
+    df_out[col_ids + ind_activity].head(10)
+
+
+
+ 
 
 if __name__=="__main__":
     psql_config = (os.environ.get('TO_DB_SERVER'),
