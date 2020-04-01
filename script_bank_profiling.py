@@ -119,7 +119,7 @@ ACTIVE_MEMBERS=("""
 
 POST_COUNTS=("""
     SELECT 
-        organization_id as bank_id, count(*) as n_posts, 
+        organization_id as bank_id, count(*) as n_posts,
         sum(case when type='Offer' then 1 else 0 end) as n_offers,
         sum(case when type='Inquiry' then 1 else 0 end) as n_inquiry,
         sum(case when is_group=TRUE then 1 else 0 end) as n_group_post 
@@ -131,10 +131,10 @@ POST_COUNTS=("""
 
 ORGANIZATION_PROFILE="""
     select
-         t1.id as bank_id, t1.name as bank_name, 
-         t2.n_members, t2.PC_known_age, t2.max_age, t2.min_age, t2.avg_age,
-         t2.n_females, t2.n_males, t2.n_prefNOansw, t2.n_gender_null, 
-         t2.PC_females, t2.PC_males, t2.PC_prefNOansw, t2.PC_gender_null, 
+         t1.id as bank_id, t1.name as bank_name,
+         t2.n_members, t2.pc_known_age, t2.max_age, t2.min_age, t2.avg_age,
+         t2.n_females, t2.n_males, t2.n_prefNOansw, t2.n_gender_null,
+         t2.pc_females, t2.pc_males, t2.pc_prefNOansw, t2.pc_gender_null,
          t2.max_seniority, t2.min_seniority, t2.avg_seniority
     from
          organizations t1
@@ -142,7 +142,7 @@ ORGANIZATION_PROFILE="""
          (select
             organization_id, count(*) as n_records,
             count(distinct id) as n_users, count(distinct member_id) as n_members,
-            round(cast(sum(case when age is not null then 1 else 0 end) as numeric)/count(*)*100,1) as PC_known_age,
+            round(cast(sum(case when age is not null then 1 else 0 end) as numeric)/count(*)*100,1) as pc_known_age,
             max(age) as max_age,
             min(age) as min_age,
             round(avg(age)) as avg_age,
@@ -150,10 +150,10 @@ ORGANIZATION_PROFILE="""
             sum(case when gender='male' then 1 else 0 end) as n_males,
             sum(case when gender='prefer_not_to_answer' then 1 else 0 end) as n_prefNOansw,
             sum(case when (gender='' or gender is null) then 1 else 0 end) as n_gender_null,
-            round(cast(sum(case when gender ='female' then 1 else 0 end) as numeric )/count(*)*100,1) as PC_females,
-	    round(cast(sum(case when gender='male' then 1 else 0 end) as numeric )/count(*)*100,1) as PC_males,
-	    round(cast(sum(case when gender='prefer_not_to_answer' then 1 else 0 end) as numeric )/count(*)*100,1) as PC_prefNOansw,
-	    round(cast(sum(case when (gender='' or gender is null) then 1 else 0 end) as numeric )/count(*)*100,1) as PC_gender_null,
+            round(cast(sum(case when gender ='female' then 1 else 0 end) as numeric )/count(*)*100,1) as pc_females,
+	    round(cast(sum(case when gender='male' then 1 else 0 end) as numeric )/count(*)*100,1) as pc_males,
+	    round(cast(sum(case when gender='prefer_not_to_answer' then 1 else 0 end) as numeric )/count(*)*100,1) as pc_prefNOansw,
+	    round(cast(sum(case when (gender='' or gender is null) then 1 else 0 end) as numeric )/count(*)*100,1) as pc_gender_null,
             max(seniority) as max_seniority,
             min(seniority) as min_seniority,  
             round(avg(seniority)) as avg_seniority
@@ -329,16 +329,16 @@ def main(psql_config):
     #Note: we replace transfers with category_id=NaN (i.e. no post associated) with a negative number in order to be able to account for them
     df_transf['category_id'].fillna(-999, inplace = True)
 
-    column_names = ['bank_id','PC_transf_nocat','PC_transf_cat1', 'PC_transf_cat2', 'PC_transf_cat3','PC_transf_cat4',
-                'PC_transf_cat5','PC_transf_cat6','PC_transf_cat7','PC_transf_cat8','PC_transf_cat9']
+    column_names = ['bank_id','pc_transf_nocat','pc_transf_cat1', 'pc_transf_cat2', 'pc_transf_cat3','pc_transf_cat4',
+                'pc_transf_cat5','pc_transf_cat6','pc_transf_cat7','pc_transf_cat8','pc_transf_cat9']
 
     d1 = round(pd.crosstab(df_transf['bank_id'], df_transf['category_id'], normalize='index', colnames=[None]) * 100,2)
     d1.reset_index(inplace=True)
     d1.columns=column_names
 
 
-    column_names = ['bank_id','PC_amount_nocat','PC_amount_cat1', 'PC_amount_cat2', 'PC_amount_cat3','PC_amount_cat4',
-                'PC_amount_cat5','PC_amount_cat6','PC_amount_cat7','PC_amount_cat8','PC_amount_cat9']
+    column_names = ['bank_id','pc_amount_nocat','pc_amount_cat1', 'pc_amount_cat2', 'pc_amount_cat3','pc_amount_cat4',
+                'pc_amount_cat5','pc_amount_cat6','pc_amount_cat7','pc_amount_cat8','pc_amount_cat9']
     d2=round(pd.crosstab(df_transf['bank_id'], df_transf['category_id'],values=df_transf['amount'], normalize='index',aggfunc='sum', colnames=[None])*100,2)
     d2.reset_index(inplace=True)
     d2.columns=column_names
@@ -421,7 +421,7 @@ def main(psql_config):
             
 
     ## Set column names of the network df
-    df_redes = pd.DataFrame(df_redes, columns=('bank_id', 'density','n_transf', 'n_edges', 'n_nodes','avg_centrality', 'min_centrality', 'max_centrality', 'n_popular_members', 'PC_popular_members'))
+    df_redes = pd.DataFrame(df_redes, columns=('bank_id', 'density','n_transf', 'n_edges', 'n_nodes','avg_centrality', 'min_centrality', 'max_centrality', 'n_popular_members', 'pc_popular_members'))
 
     df_cc.organization_id=df_cc.organization_id.astype(int)    
     df_cc.to_csv('results/members_centralities.csv', sep='\t', encoding='utf-8')
@@ -447,9 +447,9 @@ def main(psql_config):
     df_out['amount_tot'].fillna(0, inplace = True)
 
     ## Defining some extra variables:
-    df_out['ntransf_perMember']=round(df_out.n_transf_tot/df_out.n_members,1)
-    df_out['amount_perMember']=round(df_out.amount_tot/df_out.n_members,1)
-    df_out['PC_active']=round(df_out.n_active_members/df_out.n_members*100,2)
+    df_out['ntransf_per_member']=round(df_out.n_transf_tot/df_out.n_members,1)
+    df_out['amount_per_member']=round(df_out.amount_tot/df_out.n_members,1)
+    df_out['pc_active']=round(df_out.n_active_members/df_out.n_members*100,2)
 
 
     
@@ -460,7 +460,7 @@ def main(psql_config):
 
     ## Defining some extra variables:
     df_out['frac_posts']=df_out.n_posts/df_out.n_transf_tot
-    df_out['npost_perMember']=round(df_out.n_posts/df_out.n_members,1)
+    df_out['npost_per_member']=round(df_out.n_posts/df_out.n_members,1)
 
     ## Add df with the network characterization 
     df_out=df_out.merge(df_redes, left_on='bank_id', right_on='bank_id', how='left')
@@ -468,7 +468,7 @@ def main(psql_config):
     ##--- Write the result as a file
     df_out['timestamp']=datetime.datetime.utcnow()  ##date.today()
     df_out.to_csv('results/organizations_profiles.csv', sep='\t', encoding='utf-8')
-    df_out.to_pickle('results/organization_profiles.bin')
+    df_out.to_pickle('results/organizations_profiles.bin')
 
 
     ###---Dividing all the indicators constructed in different groups: -----------------
@@ -481,28 +481,28 @@ def main(psql_config):
 
     ## activity in the bank:
     ind_activity=['n_transf_tot', 'amount_tot',
-                  'ntransf_perMember', 'amount_perMember', 
-                  'n_active_members','PC_active', 
+                  'ntransf_per_member', 'amount_per_member',
+                  'n_active_members','pc_active',
                   'avg_delay',
-                  'n_posts', 'frac_posts', 'npost_perMember',
-                  'n_offers', 'n_inquiry', 'n_group_post', 
+                  'n_posts', 'frac_posts', 'npost_per_member',
+                  'n_offers', 'n_inquiry', 'n_group_post',
                   'ratio_inquiry_offer','frac_group_posts']
 
     ## demography:
-    ind_demog=['pc_known_age', 'max_age','min_age', 'avg_age', 
-               'n_females', 'n_males', 'n_prefnoansw','n_gender_null', 
+    ind_demog=['pc_known_age', 'max_age','min_age', 'avg_age',
+               'n_females', 'n_males', 'n_prefnoansw','n_gender_null',
                'pc_females', 'pc_males', 'pc_prefnoansw','pc_gender_null']
 
     ## type of interchanges:
-    ind_types=['PC_transf_nocat', 'PC_transf_cat1', 'PC_transf_cat2', 'PC_transf_cat3', 'PC_transf_cat4',
-               'PC_transf_cat5', 'PC_transf_cat6', 'PC_transf_cat7', 'PC_transf_cat8','PC_transf_cat9', 
-               'PC_amount_nocat', 'PC_amount_cat1', 'PC_amount_cat2', 'PC_amount_cat3', 'PC_amount_cat4', 
-               'PC_amount_cat5', 'PC_amount_cat6', 'PC_amount_cat7', 'PC_amount_cat8', 'PC_amount_cat9']
+    ind_types=['pc_transf_nocat', 'pc_transf_cat1', 'pc_transf_cat2', 'pc_transf_cat3', 'pc_transf_cat4',
+               'pc_transf_cat5', 'pc_transf_cat6', 'pc_transf_cat7', 'pc_transf_cat8','pc_transf_cat9',
+               'pc_amount_nocat', 'pc_amount_cat1', 'pc_amount_cat2', 'pc_amount_cat3', 'pc_amount_cat4',
+               'pc_amount_cat5', 'pc_amount_cat6', 'pc_amount_cat7', 'pc_amount_cat8', 'pc_amount_cat9']
 
     ## network characteristics:
-    ind_network=['density','n_transf', 'n_edges', 'n_nodes', 
-                 'avg_centrality', 'min_centrality', 'max_centrality', 
-                 'n_popular_members', 'PC_popular_members']
+    ind_network=['density','n_transf', 'n_edges', 'n_nodes',
+                 'avg_centrality', 'min_centrality', 'max_centrality',
+                 'n_popular_members', 'pc_popular_members']
 
 
     ## Now let's look for example at the indicators of bank activity: 
