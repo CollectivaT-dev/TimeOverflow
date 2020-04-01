@@ -1,4 +1,6 @@
 venv/
+.ipynb_checkpoints/
+*.bin
 *.swp
 *.png
 *.pyc

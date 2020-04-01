@@ -468,7 +468,7 @@ def main(psql_config):
     ##--- Write the result as a file
     df_out['timestamp']=datetime.datetime.utcnow()  ##date.today()
     df_out.to_csv('results/organizations_profiles.csv', sep='\t', encoding='utf-8')
-
+    df_out.to_pickle('results/organization_profiles.bin')
 
 
     ###---Dividing all the indicators constructed in different groups: -----------------
