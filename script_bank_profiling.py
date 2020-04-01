@@ -258,9 +258,7 @@ def main(psql_config):
                             user=to_user,
                             password=to_password)
 
-
     with conn:
-
         sql1=INTERCHANGE_ACTIVITY 
         df_transf = pd.read_sql_query(sql1, conn)  ## Df with all the edges (NOT grouped by!!!)
 
@@ -321,8 +319,6 @@ def main(psql_config):
     print('after removing transfers with no bank associated: ', df_transf.shape)
 
 
-
-
     ##--- INTERCHANGE CHARACTERIZATION -----------------------------------------------------
     ## Calculating number of transfers per category type and per bank
  
@@ -336,7 +332,6 @@ def main(psql_config):
     d1.reset_index(inplace=True)
     d1.columns=column_names
 
-
     column_names = ['bank_id','pc_amount_nocat','pc_amount_cat1', 'pc_amount_cat2', 'pc_amount_cat3','pc_amount_cat4',
                 'pc_amount_cat5','pc_amount_cat6','pc_amount_cat7','pc_amount_cat8','pc_amount_cat9']
     d2=round(pd.crosstab(df_transf['bank_id'], df_transf['category_id'],values=df_transf['amount'], normalize='index',aggfunc='sum', colnames=[None])*100,2)
@@ -349,7 +344,6 @@ def main(psql_config):
 
     dcat_tot=pd.merge(dcat_tot, d1, how='left',left_on='bank_id', right_on='bank_id')
     dcat_tot=pd.merge(dcat_tot, d2, how='left',left_on='bank_id', right_on='bank_id')
-   
 
 
     ###--- NETWORK ANALYSIS -------------------------------------------------------
@@ -373,24 +367,19 @@ def main(psql_config):
     column_names = ['organization_id', 'account_id', 'special_type','centrality']
     df_cc = pd.DataFrame(columns = column_names)
 
-
     for i in df_edges.bank_id.unique():
             
             dd=df_edges[df_edges['bank_id']==i] #df with edges between members of that specific bank
             n_transf=sum(dd.n_transf)
             
             print("Analizing organization %d   --------------------------------" % (i))
-           
             
             G1 = nx.from_pandas_edgelist(dd, 'account_id_emis', 'account_id_dest', ['amount', 'n_transf', 'bank_id'])
      
             nx.set_node_attributes(G1, nodeData.set_index('account_id').to_dict('index'))
-            
 
             print("Its network has %d edges and %d nodes" % (G1.number_of_edges(),G1.number_of_nodes()) )
             print('and a density of: ', nx.density(G1))
-
-           
 
             ## Create ranking of members according to their centrality inside the bank:
             #most_active_members = sorted(nx.degree_centrality(G1), key = lambda x: (-nx.degree_centrality(G1)[x], x)) ##list of ids in descending order of centrality
@@ -411,23 +400,19 @@ def main(psql_config):
             ## Count members with degree centrality >20%
             count_c20 = sum(map(lambda x : x>0.2, list(nx.degree_centrality(G1).values())))
 
-
             ## Array with the centrality values of all the nodes
             cc=np.array(list(nx.degree_centrality(G1).values()))
             
             df_redes.append((i, nx.density(G1), n_transf, G1.number_of_edges(), G1.number_of_nodes(), 
                            cc.mean(), cc.min(), cc.max(), count_c20, count_c20/len(cc)*100))
-        
-            
+
 
     ## Set column names of the network df
     df_redes = pd.DataFrame(df_redes, columns=('bank_id', 'density','n_transf', 'n_edges', 'n_nodes','avg_centrality', 'min_centrality', 'max_centrality', 'n_popular_members', 'pc_popular_members'))
 
     df_cc.organization_id=df_cc.organization_id.astype(int)    
     df_cc.to_csv('results/members_centralities.csv', sep='\t', encoding='utf-8')
- 
 
-    
 
     ##--- CREATING THE FINAL DATAFRAME (by joining all the df created so far) -------------------------------
 
@@ -439,7 +424,6 @@ def main(psql_config):
     ## Add varibale of mean delay of first interchange 
     df_out=pd.merge(df_out, df_delay[['bank_id','avg_delay']], how='left', left_on='bank_id', right_on='bank_id')
 
-
     ## Add df with characterization of interchanges (according to their category_id)
     df_out=pd.merge(df_out, dcat_tot, how='left', left_on='bank_id', right_on='bank_id')
 
@@ -450,8 +434,6 @@ def main(psql_config):
     df_out['ntransf_per_member']=round(df_out.n_transf_tot/df_out.n_members,1)
     df_out['amount_per_member']=round(df_out.amount_tot/df_out.n_members,1)
     df_out['pc_active']=round(df_out.n_active_members/df_out.n_members*100,2)
-
-
     
     ## Add df with posts metrics
     df_out=pd.merge(df_out, df_posts, how='left', left_on='bank_id', right_on='bank_id')
@@ -469,7 +451,6 @@ def main(psql_config):
     df_out['timestamp']=datetime.datetime.utcnow()  ##date.today()
     df_out.to_csv('results/organizations_profiles.csv', sep='\t', encoding='utf-8')
     df_out.to_pickle('results/organizations_profiles.bin')
-
 
     ###---Dividing all the indicators constructed in different groups: -----------------
     #df_out.columns
@@ -504,13 +485,8 @@ def main(psql_config):
                  'avg_centrality', 'min_centrality', 'max_centrality',
                  'n_popular_members', 'pc_popular_members']
 
-
     ## Now let's look for example at the indicators of bank activity: 
     df_out[col_ids + ind_activity].head(10)
-
-
-
- 
 
 if __name__=="__main__":
     psql_config = (os.environ.get('TO_DB_SERVER'),
@@ -522,6 +498,3 @@ if __name__=="__main__":
             raise ValueError('TO_DB_SERVER, TO_DB_USER, TO_DB_PASSWORD and TO_DB_NAME '\
                              'has to be set as environment variables.')
     main(psql_config)
-
-
-
