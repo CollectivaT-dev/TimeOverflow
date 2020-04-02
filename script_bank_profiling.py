@@ -1,11 +1,19 @@
 # 2020 Col·lectivaT
 #
 ### TO DO LIST:
-# - add indicator measuring mean lifetime of users
-# - add betweenness??
+# - Possible indicators to add:
+# - *flag of active bank (=one interchange inside the bank in the last month)
+# - *mean time from last interchange
+# - *mean abs(balance) of users
+# - *porcentaje of active members respect to members who did at least one interchange in their life
+# - *n. subscription in last 3? months
+# - *frequency of subscription
+# - *frequency of transfers
+# - *median/mean amount of the transfers
+# - *mean lifetime of users
+# - *betweenness??
 # - improve plots (for example, color of nodes according to special_type, find
 # better visualization for big coomunity)
-# - save plots in files with number of the organization
 # - ? make directional graphs?
 # - ? pre-cleaning  of transactions data?
 import sys
@@ -132,10 +140,10 @@ POST_COUNTS=("""
 
 ORGANIZATION_PROFILE="""
     select
-         t1.id as bank_id, t1.name as bank_name,
-         t2.n_members, t2.pc_known_age, t2.max_age, t2.min_age, t2.avg_age,
-         t2.n_females, t2.n_males, t2.n_prefNOansw, t2.n_gender_null,
-         t2.pc_females, t2.pc_males, t2.pc_prefNOansw, t2.pc_gender_null,
+         t1.id as bank_id, t1.name as bank_name, 
+         t2.n_members, t2.PC_known_age, t2.max_age, t2.min_age, t2.avg_age,
+         t2.n_females, t2.n_males, t2.n_prefNOansw, t2.n_gender_null, 
+         t2.PC_females, t2.PC_males, t2.PC_prefNOansw, t2.PC_gender_null, 
          t2.max_seniority, t2.min_seniority, t2.avg_seniority
     from
          organizations t1
@@ -143,7 +151,7 @@ ORGANIZATION_PROFILE="""
          (select
             organization_id, count(*) as n_records,
             count(distinct id) as n_users, count(distinct member_id) as n_members,
-            round(cast(sum(case when age is not null then 1 else 0 end) as numeric)/count(*)*100,1) as pc_known_age,
+            round(cast(sum(case when age is not null then 1 else 0 end) as numeric)/count(*)*100,1) as PC_known_age,
             max(age) as max_age,
             min(age) as min_age,
             round(avg(age)) as avg_age,
@@ -151,29 +159,36 @@ ORGANIZATION_PROFILE="""
             sum(case when gender='male' then 1 else 0 end) as n_males,
             sum(case when gender='prefer_not_to_answer' then 1 else 0 end) as n_prefNOansw,
             sum(case when (gender='' or gender is null) then 1 else 0 end) as n_gender_null,
-            round(cast(sum(case when gender ='female' then 1 else 0 end) as numeric )/count(*)*100,1) as pc_females,
-	    round(cast(sum(case when gender='male' then 1 else 0 end) as numeric )/count(*)*100,1) as pc_males,
-	    round(cast(sum(case when gender='prefer_not_to_answer' then 1 else 0 end) as numeric )/count(*)*100,1) as pc_prefNOansw,
-	    round(cast(sum(case when (gender='' or gender is null) then 1 else 0 end) as numeric )/count(*)*100,1) as pc_gender_null,
-            max(seniority) as max_seniority,
-            min(seniority) as min_seniority,  
-            round(avg(seniority)) as avg_seniority
+            round(cast(sum(case when gender ='female' then 1 else 0 end) as numeric )/count(*)*100,1) as PC_females,
+            round(cast(sum(case when gender='male' then 1 else 0 end) as numeric )/count(*)*100,1) as PC_males,
+            round(cast(sum(case when gender='prefer_not_to_answer' then 1 else 0 end) as numeric )/count(*)*100,1) as PC_prefNOansw,
+            round(cast(sum(case when (gender='' or gender is null) then 1 else 0 end) as numeric )/count(*)*100,1) as PC_gender_null,
+            max(seniority_days) as max_seniority,
+            min(seniority_days) as min_seniority,  
+            round(avg(seniority_days)) as avg_seniority
          from      
             (select
-                ta.id, 
-                ta.date_of_birth, case when extract (year from date_of_birth)>1900 then extract ( year from age(ta.date_of_birth)) else null end as age,
+                ta.id, ta.date_of_birth, 
+                case when extract (year from date_of_birth)>1900 then extract (year from age(to_date('%s','yyyy-mm-dd'),ta.date_of_birth) ) else null end as age,
                 ta.gender, ta.active, ta.created_at, ta.sign_in_count, ta.current_sign_in_at, ta.last_sign_in_at,
                 tb.id as member_id, tb.organization_id, tb.manager, tb.entry_date,
-                case when extract (year from tb.entry_date)>1900 then extract ( year from age(tb.entry_date)) else null end as seniority,
-                tb.member_uid, tb.active as active_member
+                case
+                    when extract (year from tb.entry_date) between 1900 and extract (year from to_date('%s','yyyy-mm-dd')) then to_date('%s','yyyy-mm-dd')-tb.entry_date
+                    else null
+                end as seniority_days,
+                case
+                    when extract (year from tb.entry_date) between 1900 and extract (year from to_date('%s','yyyy-mm-dd')) then extract (year from age(to_date('%s','yyyy-mm-dd'),tb.entry_date))
+                    else null
+                end as seniority_years,
+                tb.member_uid,
+                tb.active as active_member
              from
                 users ta
              left outer join
                 members tb
              on ta.id=tb.user_id) tt
          group by organization_id) t2
-    on t1.id=t2.organization_id;"""
-
+    on t1.id=t2.organization_id;""" % (date_end, date_end, date_end,date_end,date_end)
 
 DELAY_FIRST_TRANSF=""" 
     select tt.organization_id as bank_id, round(cast(avg(tt.delay_first_transf) as numeric),1) as avg_delay, count(*) as weight from 
