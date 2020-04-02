@@ -193,6 +193,20 @@ DELAY_FIRST_TRANSF="""
     group by tt.organization_id;
 """
 
+INERT_MEMBERS="""
+    SELECT 
+        organization_id as bank_id, 
+        sum(case when accountable_type is not null then 1 else 0 end) as n_memb_mov, 
+        sum(case when accountable_type is null then 1 else 0 end) as n_memb_NOmov, 
+        round(cast(sum(case when accountable_type is null then 1 else 0 end) as numeric)/count(*)*100,2) as pc_inert, 
+        count(*) as n_members 
+    FROM 
+        (SELECT mem.id, mem.organization_id, acc.accountable_type 
+        FROM "members" mem  
+        LEFT OUTER JOIN (select * from accounts where id in (select distinct account_id from movements) and accountable_type='Member') acc ON mem.id=acc.accountable_id) tt
+     GROUP BY organization_id;
+"""
+
 
 ### FUNCTIONS: ------------------------------------------------------------------
 
@@ -277,6 +291,9 @@ def main(psql_config):
 
         sql6=DELAY_FIRST_TRANSF
         df_delay= pd.read_sql_query(sql6, conn)  ## Df with mean delay (in days) in making the first transfer
+
+        sql7=INERT_MEMBERS
+        df_inert= pd.read_sql_query(sql7, conn) ## Df with % of members in each bank who never made a transfer
         
     ##--- POSTS METRICS  ----------------------------------------------------------
     ## Adding new variables to df with number of posts per bank:   
@@ -422,6 +439,9 @@ def main(psql_config):
 
     df_out['n_active_members'].fillna(0, inplace = True)
 
+    ## Add varibale of percentage of inert members (members who never made an interchange) 
+    df_out=pd.merge(df_out, df_inert[['bank_id','pc_inert']], how='left', left_on='bank_id', right_on='bank_id')
+
     ## Add varibale of mean delay of first interchange 
     df_out=pd.merge(df_out, df_delay[['bank_id','avg_delay']], how='left', left_on='bank_id', right_on='bank_id')
 
@@ -464,7 +484,7 @@ def main(psql_config):
     ## activity in the bank:
     ind_activity=['n_transf_tot', 'amount_tot',
                   'ntransf_per_member', 'amount_per_member',
-                  'n_active_members','pc_active',
+                  'n_active_members','pc_active', 'pc_inert',
                   'avg_delay',
                   'n_posts', 'frac_posts', 'npost_per_member',
                   'n_offers', 'n_inquiry', 'n_group_post',
