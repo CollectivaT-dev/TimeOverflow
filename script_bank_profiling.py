@@ -18,6 +18,7 @@ import numpy as np
 import networkx as nx
 from networkx.algorithms.community import greedy_modularity_communities
 import datetime
+import statistics
 
 
 ### COMMAND LINE ARGUMENTS -----------------------------------
@@ -404,11 +405,11 @@ def main(psql_config):
             cc=np.array(list(nx.degree_centrality(G1).values()))
             
             df_redes.append((i, nx.density(G1), n_transf, G1.number_of_edges(), G1.number_of_nodes(), 
-                           cc.mean(), cc.min(), cc.max(), count_c20, count_c20/len(cc)*100))
+                           cc.mean(), statistics.median(cc), cc.min(), cc.max(), count_c20, count_c20/len(cc)*100))
 
 
     ## Set column names of the network df
-    df_redes = pd.DataFrame(df_redes, columns=('bank_id', 'density','n_transf', 'n_edges', 'n_nodes','avg_centrality', 'min_centrality', 'max_centrality', 'n_popular_members', 'pc_popular_members'))
+    df_redes = pd.DataFrame(df_redes, columns=('bank_id', 'density','n_transf', 'n_edges', 'n_nodes','avg_centrality', 'median_centrality', 'min_centrality', 'max_centrality', 'n_popular_members', 'pc_popular_members'))
 
     df_cc.organization_id=df_cc.organization_id.astype(int)    
     df_cc.to_csv('results/members_centralities.csv', sep='\t', encoding='utf-8')
@@ -482,7 +483,7 @@ def main(psql_config):
 
     ## network characteristics:
     ind_network=['density','n_transf', 'n_edges', 'n_nodes',
-                 'avg_centrality', 'min_centrality', 'max_centrality',
+                 'avg_centrality','median_centrality','min_centrality', 'max_centrality',
                  'n_popular_members', 'pc_popular_members']
 
     ## Now let's look for example at the indicators of bank activity: 
