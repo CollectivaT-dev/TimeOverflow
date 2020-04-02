@@ -188,7 +188,7 @@ DELAY_FIRST_TRANSF="""
     inner join (select * from accounts where accountable_type='Member') acc on mov.account_id=acc.id
     inner join (select id, created_at::timestamp::date as entry_date from organizations) org on acc.organization_id=org.id
     inner join (select * from members where entry_date>=(select min(created_at) from movements)) mem on acc.accountable_id=mem.id
-    ) tt where tt.entry_date > tt.bank_entry_date
+    ) tt where tt.entry_date > tt.bank_entry_date and tt.delay_first_transf>=0
     group by tt.organization_id;
 """
 
