@@ -1,24 +1,30 @@
 # TimeOverflow
 
 ## Setup
+To run the scripts it is necessary to setup the environment variables in the
+.env file. First copy the `.env_default` to `.env`
 ```sh
-docker build . -t timeoverflow_data
+cp .env_default .env
 ```
+
 ## Run
 ```sh
-docker run --name to_data -e TO_DB_SERVER=<server> -e TO_DB_USER=<user> -e TO_DB_PASSWORD=<pass> -e TO_DB_NAME=<database> --network="host" timeoverflow_data
+docker compose build
+docker compose up
 ```
+
 ## Check for results
 ```sh
-docker inspect -f '{{ .Mounts }}' to_data
+docker inspect -f '{{ .Mounts }}' to_data_1_<hash>
 ```
 
 ## Periodic launch of the script
 Each time the container is run, it launches the script until the end and then
 quits, i.e. the docker container is stopped. To relaunch the script simply:
 ```sh
-docker start to_data
+docker compose up
 ```
 
 This re-runs the scripts quietly (no stdout), and rewrites the files to the
-designated docker volume and at the end stops the docker container.
+designated docker volume, pushes the data to the designated wo db and at the
+end stops the docker container.
