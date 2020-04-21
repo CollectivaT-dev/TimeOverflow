@@ -276,6 +276,33 @@ def plot_local_network(nodeData, H):
 
     plt.savefig("results/local.png")
 
+
+def convert_for_db(df):
+    df_transposed = df.T
+    dt = df_transposed.drop('bank_name').drop('timestamp')
+    dt_new = pd.DataFrame()
+
+    for i in dt: 
+        new = dt[i].reset_index().rename(columns={'index':'kpi_name'}) 
+        val_column = list(set(new.columns.values).difference(set(['kpi_name'])))[0] 
+        new.rename(columns={val_column:'kpi_value'}, inplace=True) 
+        new['bank_id'] = df_transposed[i]['bank_id'] 
+        new['timestamp'] = df_transposed[i]['timestamp'] 
+        new['kpi_value_type'] = 'float'
+        dt_new = dt_new.append(new, ignore_index=True) 
+
+    return dt_new
+
+
+def push_to_viz_db(df, viz_db_config):
+    server, to_user, to_password, to_database = viz_db_config
+    engine = create_engine('postgresql://%s:%s@%s'%(to_user,
+                                                    to_password,
+                                                    server), pool_recycle=3600)
+
+    dt_new.to_sql(to_database, con=engine, if_exists='append', index=False, chunksize=1000)
+
+
 #######################################################################
 
 
