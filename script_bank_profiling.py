@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import networkx as nx
 from networkx.algorithms.community import greedy_modularity_communities
+from sqlalchemy import create_engine
 import datetime
 import statistics
 
@@ -300,14 +301,14 @@ def push_to_viz_db(df, viz_db_config):
                                                     to_password,
                                                     server), pool_recycle=3600)
 
-    dt_new.to_sql(to_database, con=engine, if_exists='append', index=False, chunksize=1000)
+    df.to_sql(to_database, con=engine, if_exists='append', index=False, chunksize=1000)
 
 
 #######################################################################
 
 
 
-def main(psql_config):
+def main(psql_config, viz_db_config):
     ##----Connection to postgres:
     server, to_user, to_password, to_database = psql_config
     conn = psycopg2.connect(host=server,
@@ -551,13 +552,23 @@ def main(psql_config):
     ## Now let's look for example at the indicators of bank activity: 
     df_out[col_ids + ind_activity].head(10)
 
+    ## send df to the time series db
+    dt = convert_for_db(df_out)
+    push_to_viz_db(dt, viz_db_config)
+    
 if __name__=="__main__":
     psql_config = (os.environ.get('TO_DB_SERVER'),
                    os.environ.get('TO_DB_USER'),
                    os.environ.get('TO_DB_PASSWORD'),
                    os.environ.get('TO_DB_NAME'))
-    for element in psql_config:
-        if not element:
-            raise ValueError('TO_DB_SERVER, TO_DB_USER, TO_DB_PASSWORD and TO_DB_NAME '\
-                             'has to be set as environment variables.')
-    main(psql_config)
+    viz_db_config = (os.environ.get('DT_DB_SERVER'),
+                     os.environ.get('DT_DB_USER'),
+                     os.environ.get('DT_DB_PASSWORD'),
+                     os.environ.get('DT_DB_NAME'))
+
+    for config in [psql_config, viz_db_config]:
+        for element in config:
+            if not element:
+                raise ValueError('TO_DB_SERVER, TO_DB_USER, TO_DB_PASSWORD and TO_DB_NAME '\
+                                 'has to be set as environment variables.')
+    main(psql_config, viz_db_config)
