@@ -18,7 +18,6 @@ RUN pip install -r requirements.txt && \
 # Copy the current directory contents into the container at /app
 ADD . /app
 RUN mkdir -p /app/results
-VOLUME ./results /app/results
 
 # Run app.py when the container launches
-CMD ["python", "testScript_grafos.py"]
+CMD ["python", "script_bank_profiling.py", "2020-01-01"]

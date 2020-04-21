@@ -296,6 +296,7 @@ def convert_for_db(df):
 
 
 def push_to_viz_db(df, viz_db_config):
+    print('connecting to:', viz_db_config)
     server, to_user, to_password, to_database = viz_db_config
     engine = create_engine('postgresql://%s:%s@%s'%(to_user,
                                                     to_password,
