@@ -302,7 +302,7 @@ def push_to_viz_db(df, viz_db_config):
                                                     to_password,
                                                     server), pool_recycle=3600)
 
-    df.to_sql(to_database, con=engine, if_exists='append', index=False, chunksize=1000)
+    df.dropna().to_sql(to_database, con=engine, if_exists='append', index=False, chunksize=1000)
 
 
 #######################################################################
