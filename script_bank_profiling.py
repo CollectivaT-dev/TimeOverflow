@@ -12,8 +12,6 @@
 # - *median/mean amount of the transfers
 # - *mean lifetime of users
 # - *betweenness??
-# - improve plots (for example, color of nodes according to special_type, find
-# better visualization for big coomunity)
 # - ? make directional graphs?
 # - ? pre-cleaning  of transactions data?
 import sys
@@ -62,8 +60,6 @@ date_active_member=datetime.datetime.strptime(date_end, '%Y-%m-%d').date()-pd.Da
 print('Start date: ', date_start)
 print('End date: ', date_end)
 print('Date used to define active members:', date_active_member)
-
-
 
 
 ### SQL QUERIES: --------------------------------------------------
@@ -224,6 +220,36 @@ INERT_MEMBERS="""
 """
 
 
+
+ACTIVITY_LASTYEAR="""
+      select zz.*, case when n_transf_ly>=threshold then 1 else 0 end as FLAG_ACTIVE_LY from 
+      (select 
+          ta.*, 
+          --tb.created_at as bank_entrydate, 
+          (to_date('2020-01-01','yyyy-mm-dd')- created_at::timestamp::date)/30 as bank_age_months,
+          case 
+            when (to_date('2020-01-01','yyyy-mm-dd')- created_at::timestamp::date)/30 <12 then (to_date('2020-01-01','yyyy-mm-dd')- created_at::timestamp::date)/30/2 
+            else 12/2 
+          end as threshold  
+      from 
+         (select tt.organization_id as bank_id,  sum(tt.n_mov) as n_transf_ly from 
+            (select 
+                t1.id, t1.accountable_type, t1.accountable_id, t1.organization_id, t1.balance, t2.* 
+            from 
+                accounts t1 
+            inner join 
+                (select 
+                    account_id, count(*) as n_mov 
+                from 
+                    movements 
+                WHERE amount<0 AND created_at BETWEEN (to_date('%s','yyyy-mm-dd') -INTERVAL '1 year') AND to_date('%s','yyyy-mm-dd')
+                group by account_id) t2 
+            on t1.id=t2.account_id) tt 
+            group by bank_id) ta left outer join organizations tb on ta.bank_id=tb.id) zz;"""  % (date_end, date_end)
+
+
+
+
 ### FUNCTIONS: ------------------------------------------------------------------
 
 def set_node_community(G, communities):
@@ -338,7 +364,11 @@ def main(psql_config, viz_db_config):
 
         sql7=INERT_MEMBERS
         df_inert= pd.read_sql_query(sql7, conn) ## Df with % of members in each bank who never made a transfer
-        
+
+        sql8=ACTIVITY_LASTYEAR
+        df_lastyear= pd.read_sql_query(sql8, conn) ## Df with n. transf in the bank in the last year and n. of accounts which made those transfers
+
+
     ##--- POSTS METRICS  ----------------------------------------------------------
     ## Adding new variables to df with number of posts per bank:   
     df_posts['ratio_inquiry_offer']=df_posts.n_inquiry/df_posts.n_offers
@@ -476,6 +506,11 @@ def main(psql_config, viz_db_config):
     df_cc.to_csv('results/members_centralities.csv', sep='\t', encoding='utf-8')
 
 
+
+
+
+
+    
     ##--- CREATING THE FINAL DATAFRAME (by joining all the df created so far) -------------------------------
 
     ## Join demografics and active members metrics
@@ -511,6 +546,12 @@ def main(psql_config, viz_db_config):
 
     ## Add df with the network characterization 
     df_out=df_out.merge(df_redes, left_on='bank_id', right_on='bank_id', how='left')
+
+    ## Add number of transfer in the last year and derived flag to filter active banks:
+    df_out=df_out.merge(df_lastyear, left_on='bank_id', right_on='bank_id', how='left')
+
+
+    
     
     ##--- Write the result as a file
     df_out['timestamp']=datetime.datetime.utcnow()  ##date.today()
@@ -520,7 +561,12 @@ def main(psql_config, viz_db_config):
     ###---Dividing all the indicators constructed in different groups: -----------------
     #df_out.columns
 
-    col_ids=['bank_id', 'bank_name','timestamp']  
+    col_ids=['bank_id', 'bank_name','timestamp']
+
+    col_filters=['flag_active_ly', 'n_transf_ly',  'threshold','bank_age_month']
+    #NOTE: The threshold to decide if flag_active_ly is 1 or 0 is based on the life time of the bank in TimeOverflow,
+    #      if life >=12 monthss threshold=12/6 (i.e. in the last year there must have been at least 6 emitted transfers),
+    #      if life <12 months then threshold=int(months_of_life/2) 
 
     ## member community characteristics:
     ind_members=['n_members','max_seniority', 'min_seniority', 'avg_seniority']
@@ -556,6 +602,8 @@ def main(psql_config, viz_db_config):
     ## send df to the time series db
     dt = convert_for_db(df_out)
     push_to_viz_db(dt, viz_db_config)
+
+
     
 if __name__=="__main__":
     psql_config = (os.environ.get('TO_DB_SERVER'),
