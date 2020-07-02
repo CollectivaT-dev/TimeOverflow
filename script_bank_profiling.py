@@ -417,25 +417,36 @@ def main(psql_config, viz_db_config):
     #Note: we replace transfers with category_id=NaN (i.e. no post associated) with a negative number in order to be able to account for them
     df_transf['category_id'].fillna(-999, inplace = True)
 
-    column_names = ['bank_id','pc_transf_nocat','pc_transf_cat1', 'pc_transf_cat2', 'pc_transf_cat3','pc_transf_cat4',
-                'pc_transf_cat5','pc_transf_cat6','pc_transf_cat7','pc_transf_cat8','pc_transf_cat9']
+    ## Calculating, for each bank, the percentage of the number of transfers in each category
+    d1 = round(pd.crosstab(df_transf['bank_id'], df_transf['category_id'], normalize='index', colnames=[None], dropna=False) * 100,2)
+    d1.columns = ['pc_transf_cat'+str(int(col)) for col in d1.columns]
+    dfNcat=d1.reindex(['pc_transf_cat-999', 'pc_transf_cat1', 'pc_transf_cat2', 'pc_transf_cat3', 'pc_transf_cat4', 'pc_transf_cat5', \
+                       'pc_transf_cat6', 'pc_transf_cat7', 'pc_transf_cat8', 'pc_transf_cat9'], axis="columns")
+    ##(previuos line needed to have all the 9 categories always appearing as columns, even when there are no transfers in the dataset for one, or some, of them) 
 
-    d1 = round(pd.crosstab(df_transf['bank_id'], df_transf['category_id'], normalize='index', colnames=[None]) * 100,2)
-    d1.reset_index(inplace=True)
-    d1.columns=column_names
+    dfNcat.rename(columns={'pc_transf_cat-999': 'pc_transf_nocat'}, inplace=True)
+    dfNcat = dfNcat.rename_axis('bank_id').reset_index()
 
-    column_names = ['bank_id','pc_amount_nocat','pc_amount_cat1', 'pc_amount_cat2', 'pc_amount_cat3','pc_amount_cat4',
-                'pc_amount_cat5','pc_amount_cat6','pc_amount_cat7','pc_amount_cat8','pc_amount_cat9']
-    d2=round(pd.crosstab(df_transf['bank_id'], df_transf['category_id'],values=df_transf['amount'], normalize='index',aggfunc='sum', colnames=[None])*100,2)
-    d2.reset_index(inplace=True)
-    d2.columns=column_names
+    ## Calculating, for each bank, the percentage of the amount of time transfered in each category 
+    d2=round(pd.crosstab(df_transf['bank_id'], df_transf['category_id'],values=df_transf['amount'], normalize='index',aggfunc='sum', colnames=[None], dropna=False)*100,2)
+    d2.columns=['pc_amount_cat'+str(int(col)) for col in d2.columns]
+    dfAcat=d2.reindex(['pc_amount_cat-999', 'pc_amount_cat1', 'pc_amount_cat2', 'pc_amount_cat3', 'pc_amount_cat4', 'pc_amount_cat5', \
+                       'pc_amount_cat6', 'pc_amount_cat7', 'pc_amount_cat8', 'pc_amount_cat9'], axis="columns")
+    ##(previous line needed to have all the 9 categories always appearing as columns, even when there are no transfers in the dataset for one, or some, of them)
+
+    dfAcat.rename(columns={'pc_amount_cat-999': 'pc_amount_nocat'}, inplace=True)
+    dfAcat = dfAcat.rename_axis('bank_id').reset_index()
+
     
     dcat_tot = df_transf.groupby(['bank_id']).agg({'transfer_id': ['count'], 'amount': ['sum']})
     dcat_tot.columns = ['n_transf_tot', 'amount_tot']
     dcat_tot = dcat_tot.reset_index()
 
-    dcat_tot=pd.merge(dcat_tot, d1, how='left',left_on='bank_id', right_on='bank_id')
-    dcat_tot=pd.merge(dcat_tot, d2, how='left',left_on='bank_id', right_on='bank_id')
+    dfNcat.bank_id=dfNcat.bank_id.astype('float64', copy=False)
+    dfAcat.bank_id=dfAcat.bank_id.astype('float64', copy=False)    
+
+    dcat_tot=pd.merge(dcat_tot, dfNcat, how='left',left_on='bank_id', right_on='bank_id')
+    dcat_tot=pd.merge(dcat_tot, dfAcat, how='left',left_on='bank_id', right_on='bank_id')
 
 
     ###--- NETWORK ANALYSIS -------------------------------------------------------
