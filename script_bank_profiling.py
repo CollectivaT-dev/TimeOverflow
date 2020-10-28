@@ -25,6 +25,7 @@ import networkx as nx
 from networkx.algorithms.community import greedy_modularity_communities
 from sqlalchemy import create_engine
 import datetime
+from datetime import date, timedelta 
 import statistics
 
 
@@ -34,8 +35,9 @@ print('Number of arguments: ', len(sys.argv), ' arguments.')
 print('Argument List: ', str(sys.argv))
 
 if len(sys.argv) <= 1:
-        print ("**Please pass as arguments: date of calculation (yyyy-mm-dd) and starting date (if different from beginning)")
-        quit()
+        date_start='2013-01-01'
+        yesterday = date.today()-timedelta(1)
+        date_end = yesterday.strftime("%Y-%m-%d") ##By default indicators are going to be calculated at the last completed day 
 elif len(sys.argv) ==2:
      date_end=sys.argv[1]
      date_start='2013-01-01'
@@ -51,14 +53,17 @@ if (datetime.datetime.strptime(date_end, '%Y-%m-%d')<=datetime.datetime.strptime
      quit()
 
 
+print ("** The indicators are going to be calculated at date (yyyy-mm-dd): ", date_end)
+print("** Temporal window considered: (", date_start, " , ", date_end, ")")
+
 ###For now:
 #date_start='2013-01-01' 
-#date_end = '2020-01-10'   ##In future it should be: date_end = date.today()
+#date_end = '2020-01-10'  
 
 date_active_member=datetime.datetime.strptime(date_end, '%Y-%m-%d').date()-pd.DateOffset(months=3) #According to definition of adbdt
 
-print('Start date: ', date_start)
-print('End date: ', date_end)
+#print('Start date: ', date_start)
+#print('End date: ', date_end)
 print('Date used to define active members:', date_active_member)
 
 
