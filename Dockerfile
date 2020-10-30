@@ -20,4 +20,4 @@ ADD . /app
 RUN mkdir -p /app/results
 
 # Run app.py when the container launches
-CMD ["python", "script_bank_profiling.py", "2020-01-01"]
+CMD ["python", "script_bank_profiling.py"]
