@@ -329,9 +329,10 @@ def convert_for_db(df):
 def push_to_viz_db(df, viz_db_config):
     print('connecting to:', viz_db_config)
     server, to_user, to_password, to_database = viz_db_config
-    engine = create_engine('postgresql://%s:%s@%s'%(to_user,
+    engine = create_engine('postgresql://%s:%s@%s/%s'%(to_user,
                                                     to_password,
-                                                    server), pool_recycle=3600)
+                                                    server,
+                                                    to_database), pool_recycle=3600)
 
     df.dropna().to_sql(to_database, con=engine, if_exists='append', index=False, chunksize=1000)
 
