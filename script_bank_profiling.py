@@ -571,7 +571,7 @@ def main(psql_config, viz_db_config):
     
     
     ##--- Write the result as a file
-    df_out['timestamp']=datetime.datetime.utcnow()  ##date.today()
+    df_out['timestamp']=datetime.datetime.strptime(date_end,'%Y-%m-%d')+ datetime.timedelta(hours=23,minutes=59,seconds=59)  ##datetime.datetime.utcnow()  ##date.today()
     df_out.to_csv('results/organizations_profiles.csv', sep='\t', encoding='utf-8')
     df_out.to_pickle('results/organizations_profiles.bin')
 
