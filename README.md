@@ -9,8 +9,8 @@ cp .env_default .env
 
 ## Run
 ```sh
-docker compose build
-docker compose up
+docker-compose build
+docker-compose up
 ```
 
 ## Check for results
@@ -22,7 +22,7 @@ docker inspect -f '{{ .Mounts }}' to_data_1_<hash>
 Each time the container is run, it launches the script until the end and then
 quits, i.e. the docker container is stopped. To relaunch the script simply:
 ```sh
-docker compose up
+docker-compose up
 ```
 
 This re-runs the scripts quietly (no stdout), and rewrites the files to the
