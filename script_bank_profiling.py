@@ -558,7 +558,9 @@ def main(psql_config, viz_db_config):
     df_out['n_posts'].fillna(0, inplace = True)
 
     ## Defining some extra variables:
-    df_out['frac_posts']=df_out.n_posts/df_out.n_transf_tot
+    df_out.loc[df_out['n_transf_tot'] > 0, 'frac_posts'] =  df_out.n_posts/df_out.n_transf_tot
+    df_out.loc[df_out['n_transf_tot'] ==0, 'frac_posts'] =  0
+    #df_out['frac_posts']=df_out.n_posts/df_out.n_transf_tot
     df_out['npost_per_member']=round(df_out.n_posts/df_out.n_members,1)
 
     ## Add df with the network characterization 
