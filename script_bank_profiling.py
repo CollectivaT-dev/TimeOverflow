@@ -377,8 +377,10 @@ def main(psql_config, viz_db_config):
 
     ##--- POSTS METRICS  ----------------------------------------------------------
     ## Adding new variables to df with number of posts per bank:   
-    df_posts['ratio_inquiry_offer']=df_posts.n_inquiry/df_posts.n_offers
-    df_posts['frac_group_posts']=df_posts.n_group_post/df_posts.n_posts
+    df_posts.loc[df_posts.n_offers>0, 'ratio_inquiry_offer']=df_posts.n_inquiry/df_posts.n_offers
+    df_posts.loc[df_posts.n_offers==0,'ratio_inquiry_offer']=0 
+    df_posts.loc[df_posts.n_posts>0, 'frac_group_posts']=df_posts.n_group_post/df_posts.n_posts
+    df_posts.loc[df_posts.n_posts==0,'frac_group_posts']=0
             
         
     ##--- ACTIVE MEMBERS METRICS  -----------------------------------------------------
